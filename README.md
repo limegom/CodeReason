@@ -32,6 +32,21 @@ AI suggestions must refer to recorded evidence. They remain advisory, and CSV ex
 
 ![Submission review workspace](docs/images/submission-review.png)
 
+## How Codex and GPT-5.6 were used
+
+### Codex
+
+Codex was used as a development collaborator for repository inspection, architecture and security review, bounded frontend and backend implementation, automated tests, Docker and migration validation, documentation, and CI preparation. Important design checkpoints included separating deterministic Primary Evidence from AI-derived interpretation, requiring human approval for final totals, fixing sandbox arguments in backend code, and invalidating analysis when grading inputs change. Codex helped trace those decisions across the schema, API, worker, interface, tests, and documentation; product scope, grading policy, and release decisions remained subject to human review. The resulting repository was checked with backend, frontend, browser-flow, sandbox, migration, and Docker Compose validation.
+
+### GPT-5.6
+
+The CodeReason worker is configured to use GPT-5.6 through the OpenAI Responses API for two constrained tasks:
+
+1. turn an instructor's natural-language grading policy into editable `DRAFT` rubric criteria; and
+2. prepare rubric-bound Derived Analysis, feedback, and score suggestions that cite existing Primary Evidence.
+
+Structured responses are validated in application code. GPT-5.6 does not execute student code, create Primary Evidence, approve a rubric, or publish a final grade. Automated provider tests use a fake client; the live-provider path is not considered ready for real student data until the pre-release privacy and versioning constraints are resolved.
+
 ## Architecture
 
 ```mermaid

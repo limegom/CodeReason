@@ -40,4 +40,4 @@ The bundled Matrix Transformation Assignment includes correct, wrong-index, runt
 
 ## Limitations
 
-The MVP supports Python 3.12 standard-library assignments only. It is an unauthenticated, local single-reviewer application. Docker is a local demo defense-in-depth mechanism, not a production multi-tenant security boundary. Secret and identifier detection, as well as hardcoding analysis, are heuristic. Live provider verification is pending privacy and versioning hardening. Authentication, LMS integration, plagiarism detection, and automatic grade publication are intentionally out of scope.
+The MVP supports Python 3.12 standard-library assignments only. It is an unauthenticated, local single-reviewer application. Docker is a local demo defense-in-depth mechanism, not a production multi-tenant security boundary. Secret and identifier detection, as well as hardcoding analysis, are heuristic. Live provider verification is limited to bundled synthetic data; real student use remains pending privacy and versioning hardening. Authentication, LMS integration, plagiarism detection, and automatic grade publication are intentionally out of scope.

@@ -188,7 +188,7 @@ def submission_review_bundle(session: Session, submission_id: str) -> dict[str, 
                 if not isinstance(item, dict):
                     continue
                 cited = item.get("evidence_ids", [])
-                if isinstance(cited, list) and set(cited).issubset(visible_ids):
+                if isinstance(cited, list) and cited and set(cited).issubset(visible_ids):
                     student_feedback.append(item)
         candidate_uncertainties = feedback_payload.get("uncertainties", [])
         if isinstance(candidate_uncertainties, list):

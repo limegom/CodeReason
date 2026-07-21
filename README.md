@@ -227,7 +227,7 @@ Provider tests use a fake client and do not require an API key. Docker integrati
 
 ## Release status
 
-This repository is a pre-release local MVP. The deterministic pipeline and provider policies are covered by automated tests, but a live OpenAI call is intentionally pending until the remaining redaction, version-snapshot, worker-fencing, and per-test isolation gaps are resolved. Use fixture or synthetic data only. See [Architecture](docs/architecture.md#pre-release-constraints) and [Security](docs/security.md#known-limitations) for the current boundaries.
+This repository is a pre-release local MVP. The deterministic pipeline and provider policies are covered by automated tests, and the GPT-5.6 path has been verified with the bundled synthetic demo data. That verification does not make the application ready for real student records: the remaining redaction, version-snapshot, worker-fencing, and per-test isolation gaps still require hardening. Use fixture or synthetic data only. See [Architecture](docs/architecture.md#pre-release-constraints) and [Security](docs/security.md#known-limitations) for the current boundaries.
 
 ## Repository layout
 

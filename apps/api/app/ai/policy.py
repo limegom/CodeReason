@@ -30,6 +30,40 @@ class AnalysisPolicyContext:
     student_visible_evidence_ids: frozenset[str] | None = None
 
 
+def withhold_unsafe_student_feedback(
+    output: AIAnalysisOutput,
+    context: AnalysisPolicyContext,
+) -> bool:
+    """Remove complete feedback items that are not supported by safe evidence."""
+
+    retained = []
+    withheld = False
+    for feedback in output.feedback_to_student:
+        cited = set(feedback.evidence_ids)
+        unsafe = (
+            not cited
+            or not cited.issubset(context.available_evidence_ids)
+            or (
+                context.student_visible_evidence_ids is not None
+                and not cited.issubset(context.student_visible_evidence_ids)
+            )
+        )
+        if unsafe:
+            withheld = True
+            continue
+        retained.append(feedback)
+
+    if withheld:
+        output.feedback_to_student = retained
+        notice = (
+            "Some student feedback was withheld because it lacked student-visible supporting "
+            "evidence; human review is required."
+        )
+        if notice not in output.uncertainties:
+            output.uncertainties.append(notice)
+    return withheld
+
+
 def validate_analysis(
     output: AIAnalysisOutput,
     context: AnalysisPolicyContext,

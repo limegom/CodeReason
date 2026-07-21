@@ -16,6 +16,7 @@ from app.ai.policy import (
     AnalysisPolicyError,
     RubricBound,
     validate_analysis,
+    withhold_unsafe_student_feedback,
 )
 from app.ai.prompts import PROMPT_VERSION, RUBRIC_PROMPT_VERSION, build_grading_payload
 from app.ai.provider import (
@@ -359,6 +360,14 @@ def process_analysis_job(
             projected.append(item)
             projected_models[evidence.id] = evidence
 
+    student_visible_ids = sorted(
+        evidence.id
+        for evidence in evidence_items
+        if evidence.id in projected_models
+        and evidence.visibility == EvidenceVisibility.STUDENT_VISIBLE
+        and not (evidence.test_result and evidence.test_result.test_case.is_hidden)
+    )
+
     approved = [
         criterion
         for criterion in assignment.rubric_criteria
@@ -381,6 +390,7 @@ def process_analysis_job(
         approved_rubric=rubric_payload,
         redacted_source_code=source.content,
         primary_evidence=projected,
+        student_feedback_allowed_evidence_ids=student_visible_ids,
         maximum_total=float(assignment.total_score),
     )
     redaction = redact_for_external_provider(
@@ -392,6 +402,7 @@ def process_analysis_job(
         "human_approved_rubric",
         "redacted_source_code",
         "sanitized_primary_evidence",
+        "student_feedback_allowed_evidence_ids",
         "score_bounds",
     ]
     manifest = _redaction_manifest(redaction, fields_sent=fields_sent)
@@ -433,37 +444,39 @@ def process_analysis_job(
 
     manifest["status"] = "SENT"
     analysis.external_data_manifest = dict(manifest)
+    analysis.provider = result.provider
+    analysis.provider_response_id = result.response_id
+    analysis.model_name = result.resolved_model
+    analysis.token_usage = result.usage
+    feedback_withheld = False
     try:
         run = session.get(ExecutionRun, analysis.execution_run_id) if analysis.execution_run_id else None
         evidence_kinds = {
             evidence_id: evidence.kind.value for evidence_id, evidence in projected_models.items()
         }
-        student_visible = frozenset(
-            evidence.id
-            for evidence in evidence_items
-            if evidence.visibility == EvidenceVisibility.STUDENT_VISIBLE
-            and not (evidence.test_result and evidence.test_result.test_case.is_hidden)
-        )
+        student_visible = frozenset(student_visible_ids)
         conflicting_evidence = _has_conflicting_evidence(evidence_items, run)
-        output = validate_analysis(
-            result.parsed,  # type: ignore[arg-type]
-            AnalysisPolicyContext(
-                rubrics=tuple(
-                    RubricBound(
-                        criterion.id,
-                        float(criterion.max_score),
-                        human_approved=True,
-                        evaluation_type=str(criterion.rules.get("evaluation_type", "hybrid")),
-                    )
-                    for criterion in approved
-                ),
-                available_evidence_ids=frozenset(projected_models),
-                evidence_kinds=evidence_kinds,
-                student_visible_evidence_ids=student_visible,
-                conflicting_evidence=conflicting_evidence,
-                execution_unavailable=_execution_is_unavailable(run),
+        policy_context = AnalysisPolicyContext(
+            rubrics=tuple(
+                RubricBound(
+                    criterion.id,
+                    float(criterion.max_score),
+                    human_approved=True,
+                    evaluation_type=str(criterion.rules.get("evaluation_type", "hybrid")),
+                )
+                for criterion in approved
             ),
+            available_evidence_ids=frozenset(projected_models),
+            evidence_kinds=evidence_kinds,
+            student_visible_evidence_ids=student_visible,
+            conflicting_evidence=conflicting_evidence,
+            execution_unavailable=_execution_is_unavailable(run),
         )
+        feedback_withheld = withhold_unsafe_student_feedback(
+            result.parsed,  # type: ignore[arg-type]
+            policy_context,
+        )
+        output = validate_analysis(result.parsed, policy_context)  # type: ignore[arg-type]
     except (
         AnalysisPolicyError,
         ValueError,
@@ -499,7 +512,7 @@ def process_analysis_job(
 
     overall_confidence = min(confidences) if confidences else None
     reasons: list[str] = []
-    if missing_evidence:
+    if missing_evidence or feedback_withheld:
         reasons.append(ReviewTrigger.MISSING_EVIDENCE.value)
     if overall_confidence is None or overall_confidence < 0.70:
         reasons.append(ReviewTrigger.LOW_MODEL_REPORTED_CONFIDENCE.value)

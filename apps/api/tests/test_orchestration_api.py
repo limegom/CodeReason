@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -245,6 +246,9 @@ def test_analysis_orchestrator_redacts_and_persists_only_derived_analysis(
         )
     )
     visible = next(item for item in evidence if item.visibility == EvidenceVisibility.STUDENT_VISIBLE)
+    reviewer_only = next(
+        item for item in evidence if item.visibility == EvidenceVisibility.REVIEWER_ONLY
+    )
     dynamic = next(item for item in evidence if item.kind.value == "TestResult")
     criteria = list(
         db_session.scalars(
@@ -280,7 +284,14 @@ def test_analysis_orchestrator_redacts_and_persists_only_derived_analysis(
                     "likely_misconception": "The offset suggests a likely indexing misconception.",
                     "next_step": "Trace the first element.",
                     "evidence_ids": [visible.id],
-                }
+                },
+                {
+                    "concept": "Reviewer-only observation",
+                    "shows_evidence_of": "This text must not reach student feedback.",
+                    "likely_misconception": "This text must not reach student feedback.",
+                    "next_step": "This text must not reach student feedback.",
+                    "evidence_ids": [reviewer_only.id],
+                },
             ],
             "uncertainties": [],
         }
@@ -302,6 +313,10 @@ def test_analysis_orchestrator_redacts_and_persists_only_derived_analysis(
     assert FAKE_OPENAI_KEY not in sent
     assert len(completed.rubric_scores) == len(criteria)
     assert "CONFLICTING_EVIDENCE" in completed.review_reasons
+    assert "MISSING_EVIDENCE" in completed.review_reasons
+    persisted_feedback = json.loads(completed.feedback)
+    assert len(persisted_feedback["feedback_to_student"]) == 1
+    assert "must not reach" not in completed.feedback
     evidence_count = db_session.query(Evidence).filter(Evidence.submission_id == submission.id).count()
     assert evidence_count == len(evidence)
 

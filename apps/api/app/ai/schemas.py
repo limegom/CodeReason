@@ -53,10 +53,16 @@ class StudentFeedbackItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     concept: str
-    shows_evidence_of: str
-    likely_misconception: str
+    shows_evidence_of: str = Field(
+        description="Describe only observable code or behavior without claiming private reasoning."
+    )
+    likely_misconception: str = Field(
+        description="Use conservative language about what the observable pattern suggests."
+    )
     next_step: str
-    evidence_ids: list[str]
+    evidence_ids: list[str] = Field(
+        description="Cite only supplied Primary Evidence whose visibility is STUDENT_VISIBLE."
+    )
 
 
 class AIAnalysisOutput(BaseModel):
@@ -115,4 +121,3 @@ class RubricParseOutput(BaseModel):
 
     items: list[ParsedRubricItem]
     uncertainties: list[str]
-

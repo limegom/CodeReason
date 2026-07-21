@@ -120,4 +120,4 @@ Persisted issue deduplication scopes an observation fingerprint to its rubric cr
 - Function-mode structured return values still need one canonical serialization path across every comparison policy.
 - Tests in one execution run share a container and temporary filesystem; they are not isolated from one another.
 - Container-level timeouts without per-test results can be reported as infrastructure failures.
-- The OpenAI adapter is covered by automated fake-provider tests. A live provider call remains pending until the privacy and versioning issues above are hardened.
+- The OpenAI adapter is covered by automated fake-provider tests, and the live GPT-5.6 path has been verified with bundled synthetic data. Real student data remains out of scope until the privacy and versioning issues above are hardened.

@@ -5,6 +5,7 @@ from app.ai.policy import (
     AnalysisPolicyError,
     RubricBound,
     validate_analysis,
+    withhold_unsafe_student_feedback,
 )
 from app.ai.schemas import AIAnalysisOutput, StudentFeedbackItem
 
@@ -85,6 +86,44 @@ def test_student_feedback_cannot_cite_reviewer_only_evidence():
             output,
             context(student_visible_evidence_ids=frozenset()),
         )
+
+
+def test_withholds_complete_unsafe_feedback_items() -> None:
+    output = make_output(evidence_ids=["visible"])
+    output.feedback_to_student = [
+        StudentFeedbackItem(
+            concept="Visible behavior",
+            shows_evidence_of="The visible test shows an observable mismatch.",
+            likely_misconception="The output pattern suggests an indexing misconception.",
+            next_step="Trace the visible example.",
+            evidence_ids=["visible"],
+        ),
+        StudentFeedbackItem(
+            concept="Hidden behavior",
+            shows_evidence_of="Unsafe reviewer-only interpretation.",
+            likely_misconception="Unsafe reviewer-only interpretation.",
+            next_step="Unsafe reviewer-only guidance.",
+            evidence_ids=["reviewer-only"],
+        ),
+        StudentFeedbackItem(
+            concept="Unsupported behavior",
+            shows_evidence_of="Unsupported interpretation.",
+            likely_misconception="Unsupported interpretation.",
+            next_step="Unsupported guidance.",
+            evidence_ids=[],
+        ),
+    ]
+    policy_context = context(
+        available_evidence_ids=frozenset({"visible", "reviewer-only"}),
+        student_visible_evidence_ids=frozenset({"visible"}),
+    )
+
+    withheld = withhold_unsafe_student_feedback(output, policy_context)
+
+    assert withheld is True
+    assert [item.concept for item in output.feedback_to_student] == ["Visible behavior"]
+    assert output.uncertainties
+    validate_analysis(output, policy_context)
 
 
 def test_private_thought_claim_is_rejected():
